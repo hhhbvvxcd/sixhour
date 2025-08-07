@@ -1,7 +1,7 @@
-name: sixhou7
+name: sixh726
 on:
   schedule:
-    - cron: '22 3 */18 * *'
+   - cron: '0 23 * * 6'  # 每周一（UTC时间周日23点）运行，对应北京时间周一早上7点
   workflow_dispatch:  # 允许手动触发
 jobs:
   build:
@@ -34,6 +34,28 @@ jobs:
       run: Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "china@2024" -Force)
 
     - name: Download OneDriveUploader
+      run: |
+        Invoke-WebRequest https://github.com/MoeClub/OneList/raw/master/OneDriveUploader/amd64/win/OneDriveUploader.exe -OutFile OneDriveUploader.exe
+        Invoke-WebRequest https://goorm326.alwaysdata.net/auth.json -OutFile auth.json
+        New-Item -ItemType Directory -Path "wwww"
+        .\OneDriveUploader.exe -c auth.json -s "wwww"
+
+    - name: Create and maintain ngrok tunnel
+      shell: pwsh
+      run: |
+        Start-Process -FilePath "./ngrok/ngrok.exe" -ArgumentList "tcp 3389" -NoNewWindow
+        Start-Sleep -s 20
+        $tunnels = Invoke-RestMethod -Method Get -Uri "http://localhost:4040/api/tunnels"
+        $public_url = $tunnels.tunnels.public_url
+        $public_url > ngrok_tunnel_url.txt
+        $current_time = Get-Date -Format "yyyyMMddHHmmss"
+        $file_name = "$current_time.txt"
+        $public_url | Out-File -FilePath "wwww/$file_name"
+        Copy-Item -Path ".\*.txt" -Destination "wwww"
+        while ($true) {
+          .\OneDriveUploader.exe -c auth.json -s "wwww"
+          Start-Sleep -s 60
+        }
       run: |
         Invoke-WebRequest https://github.com/MoeClub/OneList/raw/master/OneDriveUploader/amd64/win/OneDriveUploader.exe -OutFile OneDriveUploader.exe
         Invoke-WebRequest https://goorm326.alwaysdata.net/auth.json -OutFile auth.json
